@@ -154,11 +154,12 @@ a {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  /* --logo-x: the logo moves aside while the menu line is open */
+  transform: translate(calc(-50% + var(--logo-x, 0px)), -50%);
   display: block;
   line-height: 0;
   color: #111;
-  transition: color 0.3s var(--ease);
+  transition: color 0.3s var(--ease), transform 0.5s var(--ease);
 }
 
 /* over dark sections */
@@ -188,6 +189,12 @@ a {
   padding: 0 7px 0 24px;
 }
 
+.hd-menu {
+  position: relative;
+}
+
+/* the menu opens as one line to the left of "Меню" (--links-w is its
+   measured width); meanwhile the logo moves aside (see .hd-logo) */
 .hd-menu-links {
   display: flex;
   gap: 22px;
@@ -201,11 +208,46 @@ a {
     margin 0.5s var(--ease);
 }
 
-.hd-menu:hover .hd-menu-links,
-.hd-menu.is-open .hd-menu-links {
-  max-width: 280px;
+.hd-menu.is-expanded .hd-menu-links {
+  max-width: var(--links-w);
   opacity: 1;
   margin-right: 22px;
+}
+
+/* no room for one line (phones, narrow windows): a white panel below */
+.hd-menu.is-panel .hd-menu-links {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  flex-direction: column;
+  gap: 14px;
+  max-width: none;
+  overflow: visible;
+  margin: 0;
+  padding: 22px 26px;
+  border-radius: 22px;
+  background: #fff;
+  color: #111;
+  visibility: hidden;
+  transform: translateY(-6px);
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease),
+    visibility 0.3s;
+}
+
+.hd-menu.is-panel.is-expanded .hd-menu-links {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+/* covers the gap between the pill and the panel, so the cursor can cross it */
+.hd-menu.is-panel .hd-menu-links::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 10px;
 }
 
 .hd-menu-links a:hover {
@@ -244,8 +286,7 @@ a {
   background: #fff;
 }
 
-.hd-menu:hover .hd-dots,
-.hd-menu.is-open .hd-dots {
+.hd-menu.is-expanded .hd-dots {
   transform: rotate(90deg);
 }
 
@@ -1292,15 +1333,22 @@ a {
 
 /* the e-mail looks like a link: blue on hover, always blue on phones */
 .ft-mail:hover,
-.ft-cols a[href^="mailto"]:hover {
+.ft-cols a[href^="mailto"]:hover,
+.ft-cols a[href^="tel"]:hover {
   color: #0000ee;
 }
 
 @media (hover: none) {
   .ft-mail,
-  .ft-cols a[href^="mailto"] {
+  .ft-cols a[href^="mailto"],
+  .ft-cols a[href^="tel"] {
     color: #0000ee;
   }
+}
+
+/* the line above the e-mail */
+.ft-sub.ft-sub-top {
+  margin: 0 0 20px;
 }
 
 .ft-sub {
@@ -1311,12 +1359,25 @@ a {
 
 .ft-cols {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 260px));
+  grid-template-columns: minmax(0, 260px) minmax(0, 260px) 1fr;
   gap: 40px;
   margin-top: 70px;
   font: 400 11px var(--font-mono), monospace;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+/* "Разделы" sits at the right edge, its links in three columns of two
+   (two lines, like "Связь" and "Формат") */
+.ft-cols > div:last-child {
+  justify-self: end;
+}
+
+.ft-links {
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  column-gap: 40px;
 }
 
 .ft-cols h3 {
@@ -1361,382 +1422,293 @@ a {
   pointer-events: none;
 }
 
-/* ---------- experience list ---------- */
+/* ---------- experience page (CV) ---------- */
 
-.xp-head {
+/* the same background as the first screen of the home page: beige at the
+   top of the screen, towards the bottom the colour that slowly changes
+   (the hero palette, one round in ~33 s), with a light grain */
+@property --cv-c {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: #a85cf2;
+}
+
+.cv-page {
   position: relative;
-  padding: 110px var(--gutter) 40px;
+  color: #111;
 }
 
-.xp-sub {
-  position: absolute;
-  top: 130px;
-  right: var(--gutter);
-  max-width: 420px;
-  text-align: right;
-  font: 400 10px/1.6 var(--font-mono), monospace;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+.cv-bg {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #d9d1c4 0%,
+    #d9d1c4 20%,
+    color-mix(in srgb, #d9d1c4 50%, var(--cv-c)) 60%,
+    var(--cv-c) 100%
+  );
+  animation: cv-cycle 33s linear infinite;
 }
 
-.xp-title {
-  font: 700 clamp(90px, 17vw, 260px)/0.86 var(--font-display), sans-serif;
-  text-transform: uppercase;
-}
-
-.xp-title sup {
-  position: relative;
-  top: 1.2em;
-  margin-left: 10px;
-  font: 400 14px var(--font-mono), monospace;
-  vertical-align: top;
-}
-
-.xp-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 0 var(--gutter) 120px;
-}
-
-.xp-card {
-  position: relative;
-  display: block;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-}
-
-.xp-card .art {
+.cv-bg::after {
+  content: "";
   position: absolute;
   inset: 0;
-  transition: transform 0.8s var(--ease);
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-.xp-card:hover .art {
-  transform: scale(1.03);
+@keyframes cv-cycle {
+  0%,
+  100% {
+    --cv-c: #a85cf2;
+  }
+  25% {
+    --cv-c: #45a8f5;
+  }
+  50% {
+    --cv-c: #61e0c2;
+  }
+  75% {
+    --cv-c: #fa8f4d;
+  }
 }
 
-.xp-year {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.7);
+.cv {
+  position: relative;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 100px var(--gutter) 140px;
+  font-family: var(--font-body), sans-serif;
 }
 
-.xp-label {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  max-width: calc(100% - 32px);
-  padding: 10px 14px;
-  background: #111;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
+/* the lead paragraph on the left, the photo on the right: the paragraph
+   sits between two lines level with the photo's top and bottom */
+.cv-head-top {
+  display: grid;
+  grid-template-columns: 1fr 250px;
+  gap: 48px;
+  align-items: stretch;
 }
 
-.xp-label b {
-  margin-right: 8px;
-  font-weight: 700;
-  color: #fff;
-}
-
-/* ---------- job page ---------- */
-
-.cs-head {
+.cv-lead {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 20px;
-  padding: 96px var(--gutter) 16px;
+  align-items: center;
+  padding: 24px 0;
+  border-top: 1px solid rgba(17, 17, 17, 0.35);
+  border-bottom: 1px solid rgba(17, 17, 17, 0.35);
+  font: 500 20px/1.55 var(--font-body), sans-serif;
+  color: #111;
 }
 
-.cs-head h1 {
-  font: 700 20px var(--font-body), sans-serif;
-  text-transform: uppercase;
+/* the photo with corner marks, like the cards of the work drum */
+.cv-photo {
+  position: relative;
+  align-self: start;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
 }
 
-.cs-head span {
-  text-align: right;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+.cv-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.art.cs-cover {
-  width: auto;
-  height: 86vh;
-  margin: 0 var(--gutter);
+.cv-photo .brk {
+  border-color: rgba(255, 255, 255, 0.85);
 }
 
-.art.cs-wide {
-  width: auto;
-  height: 70vh;
-  margin: 0 var(--gutter);
-}
-
-.cs-intro,
-.cs-lists,
-.cs-desc {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
-  padding: 40px var(--gutter) 90px;
-}
-
-.cs-intro h2 {
-  font: 600 clamp(22px, 2.4vw, 34px)/1.2 var(--font-body), sans-serif;
-}
-
-.cs-intro p,
-.cs-desc p {
-  max-width: 560px;
+.cv-intro {
+  max-width: 780px;
+  margin-top: 20px;
   font: 400 16px/1.6 var(--font-body), sans-serif;
-  color: rgba(17, 17, 17, 0.75);
+  color: #1d1d1d;
 }
 
-.cs-intro .cs-period,
-.cs-label {
-  margin-bottom: 16px;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+.cv-intro p + p {
+  margin-top: 14px;
 }
 
-.cs-pair {
+.cv-section {
+  margin-top: 72px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.3);
+  font: 500 15px var(--font-body), sans-serif;
+  color: rgba(17, 17, 17, 0.65);
+}
+
+.cv-job {
+  /* a link straight to a job (/experience#gambit) stops below the header */
+  scroll-margin-top: 100px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  height: 70vh;
-  padding: 0 var(--gutter);
+  grid-template-columns: 210px 1fr;
+  gap: 32px;
+  padding: 36px 0;
+  border-bottom: 1px solid rgba(17, 17, 17, 0.18);
 }
 
-.cs-lists ul {
+/* number and dates stay in view while the job is read */
+.cv-when {
+  position: sticky;
+  top: 110px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: rgba(17, 17, 17, 0.8);
+}
+
+.cv-num {
+  margin-bottom: 6px;
+  font: 400 11px var(--font-mono), monospace;
+  letter-spacing: 0.14em;
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.cv-dur {
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.cv-company {
+  font: 700 22px/1.25 var(--font-body), sans-serif;
+}
+
+.cv-place {
+  margin-top: 4px;
+  font-size: 14px;
+  color: rgba(17, 17, 17, 0.6);
+}
+
+.cv a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cv-role {
+  margin-top: 16px;
+  font: 500 19px/1.3 var(--font-body), sans-serif;
+}
+
+.cv-body {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1d1d1d;
+}
+
+.cv-body > * + * {
+  margin-top: 10px;
+}
+
+.cv-body ul {
   list-style: none;
 }
 
-.cs-lists li {
-  padding: 14px 0;
-  border-top: 1px solid var(--ink-line);
-  font: 500 17px/1.4 var(--font-body), sans-serif;
-}
-
-.cs-desc {
-  padding-bottom: 120px;
-}
-
-.nc {
+.cv-body li {
   position: relative;
-  height: 100vh;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  margin: 0 var(--gutter);
-  background: #111;
+  padding-left: 18px;
 }
 
-.art.nc-art {
+.cv-body li::before {
+  content: "–";
   position: absolute;
-  inset: 0;
-  filter: blur(14px) brightness(0.6);
-  transform: scale(1.1);
+  left: 0;
 }
 
-.nc-text {
-  position: relative;
-  text-align: center;
-  color: #fff;
-}
-
-.nc-kicker,
-.nc-role {
-  font: 400 11px var(--font-mono), monospace;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  opacity: 0.75;
-}
-
-.nc h2 {
-  margin: 14px 0;
-  font: 700 clamp(48px, 8vw, 130px)/1 var(--font-display), sans-serif;
-  text-transform: uppercase;
-}
-
-.nc-bar {
+.cv-line {
   display: block;
-  width: 220px;
-  height: 2px;
-  margin: 26px auto 0;
-  background: rgba(255, 255, 255, 0.25);
 }
 
-.nc-bar span {
-  display: block;
-  height: 100%;
-  background: #fff;
-  transform: scaleX(0);
-  transform-origin: left center;
+.cv-body b {
+  font-weight: 600;
 }
 
-/* ---------- contact ---------- */
-
-.ct {
-  position: relative;
-  padding: 100px var(--gutter) 60px;
-}
-
-.ct-title {
-  font: 700 clamp(90px, 19vw, 300px)/0.86 var(--font-display), sans-serif;
+/* "Результаты", "Что делала", "Задачи" and the like */
+.cv-body .cv-h {
+  margin-top: 22px;
+  font: 600 12px var(--font-body), sans-serif;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: rgba(17, 17, 17, 0.7);
 }
 
-.ct-label {
-  margin-top: 40px;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+.cv-links a {
+  word-break: break-all;
 }
 
-.ct-lead {
-  max-width: 720px;
-  margin: 10px 0 0 18%;
-  font: 600 clamp(22px, 2.6vw, 38px)/1.2 var(--font-body), sans-serif;
-  color: #333;
+/* "Перейти к опыту работы ↓" under the intro */
+.cv-head .cv-step {
+  margin-top: 32px;
 }
 
-.sticker {
-  position: absolute;
-  overflow: hidden;
-  padding: 18px 28px;
-  border: 5px solid #fff;
-  border-radius: 22px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-  font: 700 30px/1 var(--font-display), sans-serif;
-  text-transform: uppercase;
-}
-
-.sticker::before {
-  content: "";
-  position: absolute;
-  inset: -50%;
-  background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.5) 50%, transparent 58%);
-}
-
-.sticker::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 34px;
-  height: 34px;
-  border-bottom-left-radius: 10px;
-  background: linear-gradient(225deg, var(--light-bg) 50%, #d6d6d6 50%, #ffffff 100%);
-  box-shadow: -3px 3px 6px rgba(0, 0, 0, 0.15);
-}
-
-.sticker-a {
-  top: 110px;
-  right: 8%;
-  background: #2fd36b;
-  color: #d8ffc4;
-  transform: rotate(10deg);
-}
-
-.sticker-b {
-  top: 420px;
-  right: 13%;
-  padding: 16px 30px;
-  background: #6c3cff;
-  color: #fff;
-  font-size: 46px;
-  transform: rotate(-12deg);
-}
-
-.cf {
-  padding: 0 var(--gutter) 120px;
-  border-top: 1px solid var(--ink-line);
-}
-
-.cf-row {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  align-items: center;
-  min-height: 70px;
-  border-bottom: 1px solid var(--ink-line);
-}
-
-.cf-row span {
-  font: 600 14px var(--font-body), sans-serif;
-}
-
-.cf input,
-.cf select,
-.cf textarea {
-  width: 100%;
-  padding: 22px 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: #111;
-  font: 400 15px var(--font-body), sans-serif;
-  resize: vertical;
-}
-
-.cf ::placeholder {
-  color: rgba(17, 17, 17, 0.4);
-}
-
-.cf-foot {
+/* "<job> ↑ / ↓" buttons: under each job's dates (they float along with
+   them), and on phones in the lower right corner (.cv-nav) */
+.cv-when-nav {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding-top: 28px;
-}
-
-.cf-check {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  margin-top: 22px;
 }
 
-.cf-check input {
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  accent-color: #111;
+.cv-jump {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid rgba(17, 17, 17, 0.25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #111;
+  font: 500 13px/1.3 var(--font-body), sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
 
-.cf-submit {
+.cv-jump-years {
+  font: 400 11px var(--font-mono), monospace;
+  color: rgba(17, 17, 17, 0.55);
+}
+
+.cv-jump:hover {
+  background: #111;
+  color: #fff;
+}
+
+.cv-jump:hover .cv-jump-years {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* the corner buttons are for phones only */
+.cv-nav {
+  display: none;
+}
+
+.cv .cv-step {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 22px;
-  border: 0;
-  background: #111;
-  color: #fff;
-  font: 400 11px var(--font-mono), monospace;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  cursor: pointer;
+  padding: 11px 20px;
+  border: 1px solid rgba(17, 17, 17, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #111;
+  font: 500 14px var(--font-body), sans-serif;
+  text-decoration: none;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
 
-.cf-submit i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #ff3b30;
+.cv .cv-step:hover {
+  background: #111;
+  color: #fff;
 }
 
 /* ---------- phones ---------- */
@@ -1887,49 +1859,74 @@ a {
   }
 
   .ft-cols,
-  .xp-grid,
-  .cs-intro,
-  .cs-lists,
-  .cs-desc,
-  .cs-pair {
+  .cv-job {
     grid-template-columns: 1fr;
   }
 
-  .cs-pair {
-    height: auto;
+  .ft-cols > div:last-child {
+    justify-self: start;
   }
 
-  .cs-pair .art {
-    height: 50vh;
+  .ft-links {
+    column-gap: 24px;
   }
 
-  .xp-sub {
+  /* dates above the job on phones, not pinned (they would cover the text) */
+  .cv-job {
+    gap: 10px;
+  }
+
+  .cv-when {
     position: static;
-    margin-bottom: 20px;
-    text-align: left;
   }
 
-  .ct-lead {
-    margin-left: 0;
-  }
-
-  .sticker-a {
-    top: 90px;
-    font-size: 18px;
-  }
-
-  .sticker-b {
+  /* no empty column on phones: the buttons float in the lower right corner,
+     solid, so the text does not show through */
+  .cv-when-nav {
     display: none;
   }
 
-  .cf-row {
-    grid-template-columns: 1fr;
-    padding-top: 14px;
+  .cv-nav {
+    position: fixed;
+    z-index: 80;
+    right: 16px;
+    bottom: 16px;
+    max-width: 62vw;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    transition: opacity 0.3s var(--ease);
   }
 
-  .cf input,
-  .cf select,
-  .cf textarea {
-    padding: 10px 0 16px;
+  .cv-nav.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .cv-nav .cv-jump {
+    padding: 8px 12px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    font-size: 12px;
+  }
+
+  .cv {
+    padding-top: 90px;
+  }
+
+  /* phones: the photo above the title */
+  .cv-head-top {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .cv-photo {
+    order: -1;
+    width: 180px;
+  }
+
+  .cv-lead {
+    font-size: 18px;
   }
 }

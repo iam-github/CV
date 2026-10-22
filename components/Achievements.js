@@ -180,7 +180,7 @@ export default function Achievements() {
   }, []);
 
   return (
-    <section className="ach">
+    <section id="education" className="ach">
       <div ref={boxRef} className="ach-dots">
         <canvas ref={canvasRef} />
         <p className="sr-only">{LINES.join(" ")}</p>

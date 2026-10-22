@@ -58,7 +58,7 @@ export default function ClientsStrip() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="cl" aria-label="Инструменты">
+    <section ref={sectionRef} id="tools" className="cl" aria-label="Инструменты">
       <div ref={trackRef} className="cl-track">
         {[0, 1].map((copy) =>
           TOOLS.map((t) => (

@@ -130,13 +130,13 @@ export default function WorkDrum() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="wd">
+    <section ref={sectionRef} id="experience" className="wd">
       <div ref={stageRef} className="wd-stage">
         <div ref={drumRef} className="wd-drum">
           {ITEMS.map((job) => (
             <Link
               key={job.slug}
-              href={`/experience/${job.slug}`}
+              href={`/experience#${job.slug}`}
               className={`wd-card art-host${openSlug === job.slug ? " is-open" : ""}`}
               data-cursor="Смотреть ↗"
               onClick={(e) => onCard(e, job.slug)}

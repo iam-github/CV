@@ -3,20 +3,70 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SECTIONS } from "@/lib/data";
 
-const MENU = [
-  { href: "/experience", label: "Опыт" },
-  { href: "/contact", label: "Контакты" },
-];
+// pages that end with the footer (it holds the contacts, id="contacts")
+const WITH_FOOTER = ["/", "/experience"];
 
 // sections with a dark background: over them the logo turns white
-const DARK = ".mf-pane, .wd, .ach, .cl, .sk, .nc";
+const DARK = ".mf-pane, .wd, .ach, .cl, .sk";
+
+// the sections of "Разделы" in the footer, without "Контакты":
+// the "Связаться" button already leads there
+const MENU = SECTIONS.filter((s) => s.href !== "#contacts");
+
+const LINKS_GAP = 22; // px between the open menu line and "Меню" (CSS margin)
+const LOGO_ROOM = 12; // px kept free on each side of the logo
 
 export default function Header() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); // opened by a tap / click
+  const [hover, setHover] = useState(false); // mouse over the menu
+  const [panel, setPanel] = useState(false); // no room for one line: a panel
+  const [linksW, setLinksW] = useState(0); // width of the open menu line
+  const [logoX, setLogoX] = useState(0); // where the logo moves meanwhile
   const [onDark, setOnDark] = useState(false);
+  const hdRef = useRef(null);
+  const leftRef = useRef(null);
+  const menuRef = useRef(null);
+  const linksRef = useRef(null);
   const logoRef = useRef(null);
   const pathname = usePathname();
+  const expanded = open || hover;
+
+  // "Связаться" goes down to the footer of this page, or to the home page's
+  // footer where the page has none
+  const page = pathname.replace(/\/$/, "") || "/";
+  const contactsHref = WITH_FOOTER.includes(page) ? "#contacts" : "/#contacts";
+
+  // The menu opens as one line to the left of "Меню", and the logo moves to
+  // the middle of the space left between "Связаться" and that line. When the
+  // line does not fit (phones, narrow windows) the menu opens as a panel below.
+  useEffect(() => {
+    const measure = () => {
+      const hd = hdRef.current;
+      const menu = menuRef.current;
+      const links = linksRef.current;
+      if (!hd || !menu || !links) return;
+      // measure the closed one-line layout
+      const cls = menu.className;
+      menu.classList.remove("is-panel", "is-expanded");
+      const lineW = links.scrollWidth;
+      const closedW = menu.offsetWidth;
+      menu.className = cls;
+
+      const hdW = hd.clientWidth;
+      const leftEdge = leftRef.current.offsetLeft + leftRef.current.offsetWidth;
+      const menuLeft = hdW - (closedW + lineW + LINKS_GAP);
+      const fits = menuLeft - leftEdge >= logoRef.current.offsetWidth + 2 * LOGO_ROOM;
+      setPanel(!fits);
+      setLinksW(lineW);
+      setLogoX(fits ? (leftEdge + menuLeft) / 2 - hdW / 2 : 0);
+    };
+    measure();
+    document.fonts.ready.then(measure);
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   // checks which section is under the logo while the page scrolls
   useEffect(() => {
@@ -57,9 +107,9 @@ export default function Header() {
   };
 
   return (
-    <header className="hd">
-      <div className="hd-left">
-        <Link href="/contact" className="hd-pill hd-cta">
+    <header ref={hdRef} className="hd">
+      <div ref={leftRef} className="hd-left">
+        <Link href={contactsHref} className="hd-pill hd-cta">
           Связаться
         </Link>
         <span className="hd-icon" aria-hidden="true">
@@ -88,6 +138,7 @@ export default function Header() {
         ref={logoRef}
         href="/"
         className={`hd-logo${onDark ? " is-on-dark" : ""}`}
+        style={{ "--logo-x": `${expanded && !panel ? logoX : 0}px` }}
         aria-label="ОК"
         onClick={onLogo}
       >
@@ -112,13 +163,25 @@ export default function Header() {
         </svg>
       </Link>
 
-      <nav className={`hd-menu${open ? " is-open" : ""}`}>
-        <div className="hd-menu-links">
+      <nav
+        ref={menuRef}
+        className={`hd-menu${expanded ? " is-expanded" : ""}${panel ? " is-panel" : ""}`}
+        onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
+        onPointerLeave={(e) => e.pointerType === "mouse" && setHover(false)}
+      >
+        <div
+          ref={linksRef}
+          className="hd-menu-links"
+          style={{ "--links-w": `${linksW}px` }}
+        >
           {MENU.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                setHover(false);
+              }}
             >
               {item.label} ↗
             </Link>
@@ -127,7 +190,7 @@ export default function Header() {
         <button
           type="button"
           className="hd-menu-toggle"
-          aria-expanded={open}
+          aria-expanded={expanded}
           onClick={() => setOpen((v) => !v)}
         >
           <span>Меню</span>

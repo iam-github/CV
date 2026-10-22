@@ -6,7 +6,7 @@ import * as THREE from "three";
 import * as CANNON from "cannon-es";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { PERSON } from "@/lib/data";
+import { PERSON, SECTIONS } from "@/lib/data";
 
 const WORD = "SUCCESS";
 const COLORS = [
@@ -296,7 +296,7 @@ export default function Footer() {
   const [user, domain] = PERSON.email.split("@");
 
   return (
-    <footer ref={footRef} className="ft">
+    <footer ref={footRef} id="contacts" className="ft">
       <div className="ft-bg" aria-hidden="true" />
       <span ref={lineXRef} className="ft-line ft-line-x" aria-hidden="true" />
       <span ref={lineYRef} className="ft-line ft-line-y" aria-hidden="true" />
@@ -305,20 +305,15 @@ export default function Footer() {
         X : 0000 Y : 0000
       </span>
 
+      {/* the site's contacts block: "Связаться" and "Контакты" lead here */}
       <div className="ft-inner">
+        <p className="ft-sub ft-sub-top">Давайте запустим ваш следующий проект</p>
         <a href={mail} className="ft-mail">
           <span>{user}</span>
           <span>@{domain}</span>
         </a>
-        <p className="ft-sub">Давайте запустим ваш следующий проект</p>
 
         <div className="ft-cols">
-          <div>
-            <h3>Разделы</h3>
-            <Link href="/">Главная</Link>
-            <Link href="/experience">Опыт</Link>
-            <Link href="/contact">Контакты</Link>
-          </div>
           <div>
             <h3>Связь</h3>
             <a href={PERSON.phoneHref}>{PERSON.phone}</a>
@@ -326,15 +321,26 @@ export default function Footer() {
           </div>
           <div>
             <h3>Формат</h3>
-            <span>{PERSON.city}</span>
-            <span>Удалённо, полная занятость</span>
+            <span>Удалённо</span>
+            <span>Полная / проектная занятость</span>
+          </div>
+          <div>
+            <h3>Разделы</h3>
+            {/* the home page blocks in their order: three columns of two */}
+            <div className="ft-links">
+              {SECTIONS.map((s) => (
+                <Link key={s.href} href={s.href}>
+                  {s.label}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="ft-bottom">
-        <span>© 2026 {PERSON.name}</span>
-        <span>{PERSON.role}</span>
+        <span>Сайт разработан мной в 2026 году</span>
+        <span>{PERSON.role} | Операционный менеджер</span>
       </div>
 
       <canvas ref={canvasRef} className="ft-canvas" />
