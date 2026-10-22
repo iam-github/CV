@@ -10,6 +10,9 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { siClaude, siGoogle } from "simple-icons";
 
+// files in /public live under the site's base path on GitHub Pages
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 // `s` is the sticker's height in world units
 export const FLOATERS = [
   { kind: "key", label: "KPI", arrow: true, color: "#4a2c9c", ink: "#ffffff", s: 0.95 },
@@ -25,10 +28,10 @@ export const FLOATERS = [
   { kind: "chrome", shape: "arrow", s: 0.85 },
   { kind: "level", mark: "C1", label: "English", s: 0.5 },
   { kind: "hand", lines: ["От сметы", "до запуска"], color: "#111111", ink: "#ffffff", s: 0.78 },
-  { kind: "file", src: "/logos/ChatGPT_logo.svg", s: 0.72 },
+  { kind: "file", src: `${BASE}/logos/ChatGPT_logo.svg`, s: 0.72 },
   { kind: "google", icon: siGoogle, s: 0.7 },
   { kind: "shape", icon: siClaude, color: `#${siClaude.hex}`, s: 0.72 },
-  { kind: "file", src: "/logos/Yandex_icon.svg", s: 0.74 },
+  { kind: "file", src: `${BASE}/logos/Yandex_icon.svg`, s: 0.74 },
 ];
 
 // ---------- canvas helpers ----------
