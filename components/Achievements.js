@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { ACHIEVEMENTS } from "@/lib/data";
+import AchievementObjects from "./AchievementObjects";
 
-const LINES = ["Люди помнят", "не задачи.", "Они помнят", "результат."];
+const LINES = ["Превращаю", "хаос в систему,", "идеи —", "в результат."];
 const RADIUS = 110;
 const LETTERS = "abcdefgh";
 
@@ -136,13 +137,7 @@ export default function Achievements() {
       <div ref={boxRef} className="ach-dots">
         <canvas ref={canvasRef} />
         <p className="sr-only">{LINES.join(" ")}</p>
-        {["tl", "tr", "bl", "br"].map((pos) => (
-          <span key={pos} className={`cube cube-${pos}`} aria-hidden="true">
-            {["f", "b", "l", "r", "t", "d"].map((f) => (
-              <i key={f} className={`cube-${f}`} />
-            ))}
-          </span>
-        ))}
+        <AchievementObjects />
       </div>
 
       <ul className="ach-table">

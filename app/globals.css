@@ -838,6 +838,40 @@ a {
   height: 100%;
 }
 
+.ach-obj {
+  position: absolute;
+  width: 135px;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+  filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.55));
+}
+.ach-obj-tl {
+  top: 2%;
+  left: 3%;
+  width: 150px;
+  transform: translateY(var(--drift, 0px)) rotate(-4deg);
+}
+.ach-obj-tr {
+  top: 2%;
+  right: 3%;
+  width: 130px;
+  transform: translateY(var(--drift, 0px)) rotate(4deg);
+}
+.ach-obj-bl {
+  top: 50%;
+  left: 2.5%;
+  width: 135px;
+  transform: translateY(var(--drift, 0px)) rotate(-5deg);
+}
+.ach-obj-br {
+  top: 50%;
+  right: 2.5%;
+  width: 145px;
+  transform: translateY(var(--drift, 0px)) rotate(5deg);
+}
+
 .cube {
   --s: 90px;
   position: absolute;
@@ -1685,6 +1719,10 @@ a {
 
   .cube {
     --s: 54px;
+  }
+
+  .ach-obj {
+    width: 72px;
   }
 
   .ach-table li {
