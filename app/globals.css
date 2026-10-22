@@ -595,8 +595,14 @@ a {
   font: 700 clamp(18px, 2vw, 28px)/1.1 var(--font-body), sans-serif;
 }
 
+/* "10+ лет управленческого опыта": a small caption in the site's mono face */
 .hero-tag em {
-  font: italic 400 clamp(18px, 2vw, 28px)/1.2 var(--font-serif), serif;
+  margin-top: 8px;
+  font: 400 12px/1.4 var(--font-mono), monospace;
+  font-style: normal;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(17, 17, 17, 0.7);
   white-space: nowrap;
 }
 

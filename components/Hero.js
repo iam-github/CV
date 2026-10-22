@@ -3,18 +3,13 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { SimplexNoise } from "three/addons/math/SimplexNoise.js";
-import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
-import { TessellateModifier } from "three/addons/modifiers/TessellateModifier.js";
-import gsap from "gsap";
 import SkillsReel from "./SkillsReel";
 import { FLOATERS, createFloater } from "./heroFloaters";
 import { PERSON } from "@/lib/data";
 
 const HEADLINE = ["Острожинская", "Кристина"];
 
-// Background gradient colours (sRGB). The same palette drives the shader and
-// the tint of the glass letters.
+// Background gradient colours (sRGB) for the shader.
 const PALETTE = [
   [0.66, 0.36, 0.95],
   [0.27, 0.66, 0.96],
@@ -22,21 +17,6 @@ const PALETTE = [
   [0.98, 0.56, 0.3],
 ];
 const PALETTE_SPEED = 0.03;
-
-function paletteAt(t, out) {
-  const p = (((t % 1) + 1) % 1) * 4;
-  const i = Math.floor(p);
-  const f = p - i;
-  const s = f * f * (3 - 2 * f);
-  const a = PALETTE[i];
-  const b = PALETTE[(i + 1) % 4];
-  return out.setRGB(
-    a[0] + (b[0] - a[0]) * s,
-    a[1] + (b[1] - a[1]) * s,
-    a[2] + (b[2] - a[2]) * s,
-    THREE.SRGBColorSpace
-  );
-}
 
 const glsl = String.raw;
 
@@ -152,43 +132,6 @@ const COMPOSITE_FRAGMENT = glsl`
   }
 `;
 
-// Letters "OK" (the initials), drawn as outlines in the proportions of a bold
-// condensed face, extruded with a round bevel and finely tessellated so the
-// surface can flow.
-const LETTERS_WIDTH = 3.32;
-
-// maxEdge: the longest triangle edge after tessellation (smaller = finer)
-function buildLetters(maxEdge) {
-  const o = new THREE.Shape();
-  o.absellipse(-0.9, 0, 0.72, 1, 0, Math.PI * 2, false, 0);
-  const hole = new THREE.Path();
-  hole.absellipse(-0.9, 0, 0.34, 0.6, 0, Math.PI * 2, true, 0);
-  o.holes.push(hole);
-
-  const k = new THREE.Shape();
-  [
-    [0, -1], [0, 1], [0.42, 1], [0.42, 0.18], [0.95, 1], [1.42, 1],
-    [0.82, 0.08], [1.46, -1], [0.98, -1], [0.55, -0.26], [0.42, -0.08], [0.42, -1],
-  ].forEach(([x, y], i) => (i ? k.lineTo(x, y) : k.moveTo(x, y)));
-  k.closePath();
-
-  let geo = new THREE.ExtrudeGeometry([o, k], {
-    depth: 0.45,
-    bevelEnabled: true,
-    bevelThickness: 0.22,
-    bevelSize: 0.12,
-    bevelSegments: 10,
-    curveSegments: 64,
-  });
-  geo.center();
-  geo = new TessellateModifier(maxEdge, 8).modify(geo);
-  geo.deleteAttribute("normal");
-  geo.deleteAttribute("uv");
-  geo = mergeVertices(geo);
-  geo.computeVertexNormals();
-  return geo;
-}
-
 export default function Hero() {
   const sectionRef = useRef(null);
   const canvasRef = useRef(null);
@@ -205,7 +148,7 @@ export default function Hero() {
 
     // phones and tablets: lighter rendering so the screen stays smooth
     const touch = window.matchMedia("(pointer: coarse)").matches;
-    // narrow screens: no glass letters, own layout of the headline and stickers
+    // narrow screens: own layout of the headline and stickers
     const narrow = () => section.clientWidth <= 640;
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
@@ -276,38 +219,13 @@ export default function Hero() {
       textTex.needsUpdate = true;
     };
 
-    // ---------- liquid glass letters ----------
-    // not on narrow screens (phones): there they slow everything down
-    const withGlass = !narrow();
-    const glassGeo = withGlass ? buildLetters(touch ? 0.18 : 0.09) : null;
-    const base = glassGeo?.attributes.position.array.slice();
-    const baseNormal = glassGeo?.attributes.normal.array.slice();
-    const tint = new THREE.Color();
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      transmission: 1,
-      thickness: 0.6,
-      roughness: 0.03,
-      ior: 1.18,
-      dispersion: 2,
-      clearcoat: 1,
-      clearcoatRoughness: 0.04,
-      attenuationColor: new THREE.Color(),
-      attenuationDistance: 1.4,
-    });
-    const glass = withGlass ? new THREE.Mesh(glassGeo, glassMat) : null;
-    if (glass) scene.add(glass);
-    const noise = new SimplexNoise();
-
     // ---------- falling elements ----------
     const floaters = [];
     const disposables = [];
     let disposed = false;
-    let viewW = 1;
-    let viewH = 1;
 
-    // All stickers fly at one depth, in front of the glass letters (so they
-    // never cut through them). Sizes and screen edges are measured there.
+    // All stickers fly at one depth, in front of the background.
+    // Sizes and screen edges are measured there.
     const FLOAT_Z = 1.4;
     const MAX_TILT = 0.6; // |base rotation| + rocking, radians
     const halfAt = () => {
@@ -435,45 +353,7 @@ export default function Hero() {
     const screenQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), flowMat);
     screenScene.add(screenQuad);
 
-    // ---------- "ОК" flies into the header logo and back ----------
-    // ok.p: 1 = in the centre, 0 = shrunk inside the header logo.
-    // The page opens with the letters hidden; the header logo brings them out.
-    const ok = { p: 0 };
-    const tmp = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
-    const zeroPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-    const logoPoint = new THREE.Vector3();
-
-    const locateLogo = () => {
-      const el = document.querySelector(".hd-logo");
-      if (!el) return;
-      const lr = el.getBoundingClientRect();
-      const sr = section.getBoundingClientRect();
-      tmp.set(
-        ((lr.left + lr.width / 2 - sr.left) / sr.width) * 2 - 1,
-        -((lr.top + lr.height / 2 - sr.top) / sr.height) * 2 + 1
-      );
-      raycaster.setFromCamera(tmp, camera);
-      raycaster.ray.intersectPlane(zeroPlane, logoPoint);
-    };
-
-    const onClick = (e) => {
-      if (!glass || ok.p < 0.99) return;
-      const r = section.getBoundingClientRect();
-      tmp.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      raycaster.setFromCamera(tmp, camera);
-      if (raycaster.intersectObject(glass, false).length) {
-        gsap.to(ok, { p: 0, duration: 1.1, ease: "power3.inOut", overwrite: true });
-      }
-    };
-    const onShow = () => {
-      gsap.to(ok, { p: 1, duration: 1.2, ease: "power3.inOut", overwrite: true });
-    };
-    section.addEventListener("click", onClick);
-    window.addEventListener("ok:show", onShow);
-
     // ---------- layout ----------
-    let glassScale = 1;
     const drawSize = new THREE.Vector2();
     const resize = () => {
       const w = section.clientWidth;
@@ -493,10 +373,6 @@ export default function Hero() {
       const bgH = 2 * tanHalf * (camera.position.z - BG_Z);
       bg.scale.set(bgH * camera.aspect, bgH, 1);
       bgMat.uniforms.uRes.value.set(w, h);
-      viewH = 2 * tanHalf * camera.position.z;
-      viewW = viewH * camera.aspect;
-      const target = Math.min(viewW * 0.26, viewH * 0.44);
-      glassScale = target / LETTERS_WIDTH;
       drawHeadline();
     };
     const ro = new ResizeObserver(resize);
@@ -513,9 +389,7 @@ export default function Hero() {
     // ---------- loop ----------
     const start = performance.now();
     let last = start;
-    const pos = glassGeo?.attributes.position;
     let raf;
-    let frameNo = 0;
 
     const frame = () => {
       raf = requestAnimationFrame(frame);
@@ -525,38 +399,6 @@ export default function Hero() {
       if (!visible) return;
       const t = (now - start) / 1000;
       bgMat.uniforms.uTime.value = t;
-
-      if (glass) {
-        // glass: tinted by the current background colour, slow full turn
-        paletteAt(t * PALETTE_SPEED, tint);
-        glassMat.attenuationColor.copy(tint);
-        glassMat.color.setRGB(1, 1, 1).lerp(tint, 0.35);
-
-        locateLogo();
-        glass.position.copy(logoPoint).multiplyScalar(1 - ok.p);
-        glass.scale.setScalar(glassScale * (0.06 + 0.94 * ok.p));
-        glass.visible = ok.p > 0.01;
-        glass.rotation.y = t * 0.15;
-        glass.rotation.x = Math.sin(t * 0.3) * 0.08;
-      }
-
-      // liquid surface: broad slow swell + fine ripple along the normals
-      // (touch screens recompute it every other frame)
-      frameNo++;
-      if (glass?.visible && (!touch || frameNo % 2 === 0)) {
-        for (let i = 0; i < pos.count; i++) {
-          const j = i * 3;
-          const bx = base[j];
-          const by = base[j + 1];
-          const bz = base[j + 2];
-          const k =
-            noise.noise3d(bx * 0.9 + t * 0.18, by * 0.9 - t * 0.12, bz * 0.9) * 0.13 +
-            noise.noise3d(bx * 2.2, by * 2.2 + t * 0.3, bz * 2.2) * 0.03;
-          pos.setXYZ(i, bx + baseNormal[j] * k, by + baseNormal[j + 1] * k, bz + baseNormal[j + 2] * k);
-        }
-        pos.needsUpdate = true;
-        glassGeo.computeVertexNormals();
-      }
 
       // falling elements: slow drop with sideways sway, back to the top below
       const bottom = -halfAt().y;
@@ -639,14 +481,10 @@ export default function Hero() {
       io.disconnect();
       section.removeEventListener("pointermove", onMove);
       section.removeEventListener("pointerleave", onLeave);
-      section.removeEventListener("click", onClick);
-      window.removeEventListener("ok:show", onShow);
-      gsap.killTweensOf(ok);
       disposables.forEach((d) => d.dispose());
       [sceneRT, flowA, flowB].forEach((rt) => rt.dispose());
-      [flowMat, compositeMat, glassMat, bgMat].forEach((m) => m.dispose());
+      [flowMat, compositeMat, bgMat].forEach((m) => m.dispose());
       screenQuad.geometry.dispose();
-      glassGeo?.dispose();
       bg.geometry.dispose();
       textTex.dispose();
       envTex.dispose();
@@ -667,7 +505,7 @@ export default function Hero() {
       <p className="hero-tag">
         {/* each half stays whole: a narrow screen breaks the line between them */}
         <strong>
-          <span className="nowrap">{PERSON.roleEn} /</span>{" "}
+          <span className="nowrap">{PERSON.roleEn} |</span>{" "}
           <span className="nowrap">Операционный менеджер</span>
         </strong>
         <em>10+ лет управленческого опыта</em>

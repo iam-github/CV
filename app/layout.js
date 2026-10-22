@@ -1,4 +1,4 @@
-import { Oswald, JetBrains_Mono, Inter, PT_Serif, Caveat } from "next/font/google";
+import { Oswald, JetBrains_Mono, Inter, Caveat } from "next/font/google";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 import Header from "@/components/Header";
@@ -22,13 +22,6 @@ const body = Inter({
   subsets: ["latin", "cyrillic"],
 });
 
-const serif = PT_Serif({
-  variable: "--font-serif",
-  subsets: ["latin", "cyrillic"],
-  weight: "400",
-  style: "italic",
-});
-
 // handwritten face for the hero stickers
 const hand = Caveat({
   variable: "--font-hand",
@@ -44,7 +37,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="ru"
-      className={`${display.variable} ${mono.variable} ${body.variable} ${serif.variable} ${hand.variable}`}
+      className={`${display.variable} ${mono.variable} ${body.variable} ${hand.variable}`}
     >
       <body>
         <Header />

@@ -99,11 +99,12 @@ export default function Header() {
     };
   }, [pathname]);
 
-  // on the home page the logo brings the glass "ОК" back out (see Hero)
+  // on the home page the logo scrolls smoothly back to the top
+  // (see "scroll:to" in SmoothScroll); elsewhere it leads home
   const onLogo = (e) => {
-    if (pathname !== "/") return;
+    if (page !== "/") return;
     e.preventDefault();
-    window.dispatchEvent(new Event("ok:show"));
+    window.dispatchEvent(new CustomEvent("scroll:to", { detail: { target: 0 } }));
   };
 
   return (
