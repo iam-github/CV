@@ -1085,63 +1085,92 @@ a {
 }
 
 .sk-list {
+  width: 100%;
   list-style: none;
   text-align: center;
 }
 
-.sk-item {
-  position: relative;
-  display: inline-block;
+/* each row: empty | word (centred) | arrow + note; the colours come from
+   --sk-c (box behind the word, arrow) and --sk-bg (darker box behind the note) */
+.sk-list li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
 }
 
 .sk-word {
-  position: relative;
-  z-index: 1;
-  font: 600 clamp(48px, 7.6vw, 112px)/1.02 var(--font-display), sans-serif;
+  grid-column: 2;
+  display: inline-block;
+  padding: 0 0.14em;
+  border-radius: 4px;
+  font: 600 clamp(28px, 4vw, 80px)/1.02 var(--font-display), sans-serif;
   text-transform: uppercase;
   color: rgba(239, 237, 230, 0.42);
-  transition: color 0.3s var(--ease);
+  transition: color 0.3s var(--ease), background-color 0.3s var(--ease);
 }
 
 .sk-list li.is-on .sk-word {
   color: #fff;
+  background-color: var(--sk-c);
 }
 
-.sk-prev {
+.sk-aside {
+  position: relative;
+  grid-column: 3;
+  align-self: stretch;
+}
+
+.sk-arrow {
   position: absolute;
-  right: 55%;
   top: 50%;
-  z-index: 0;
-  width: clamp(160px, 19vw, 270px);
-  aspect-ratio: 3 / 2;
+  left: 12px;
+  right: calc(clamp(160px, 16vw, 280px) + 12px);
+  height: 1px;
+  background: var(--sk-c);
   opacity: 0;
-  transform: translateY(-50%) scale(0.92);
-  transition: opacity 0.3s var(--ease), transform 0.4s var(--ease);
-  pointer-events: none;
+  transition: opacity 0.3s var(--ease);
+}
+
+/* arrow head */
+.sk-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -4px;
+  border: 4.5px solid transparent;
+  border-right: 0;
+  border-left: 8px solid var(--sk-c);
 }
 
 .sk-note {
   position: absolute;
-  left: 100%;
+  right: 0;
   top: 50%;
-  margin-left: 20px;
-  font: 400 10px var(--font-mono), monospace;
-  letter-spacing: 0.2em;
+  width: clamp(160px, 16vw, 280px);
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: var(--sk-bg);
+  font: 400 10px/1.6 var(--font-mono), monospace;
+  letter-spacing: 0.14em;
+  text-align: left;
   text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--muted);
+  color: rgba(239, 237, 230, 0.88);
   opacity: 0;
   transform: translateY(-50%);
   transition: opacity 0.3s var(--ease);
+  pointer-events: none;
 }
 
-.sk-list li.is-on .sk-prev {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
-}
-
+.sk-list li.is-on .sk-arrow,
 .sk-list li.is-on .sk-note {
   opacity: 1;
+}
+
+/* narrow windows and tablets: no room beside the words for the note */
+@media (max-width: 1000px) {
+  .sk-aside {
+    display: none;
+  }
 }
 
 /* ---------- footer ---------- */
@@ -1841,6 +1870,10 @@ a {
 
   .sk-note {
     display: none;
+  }
+
+  .sk-word {
+    font-size: 40px;
   }
 
   /* room at the bottom for the two rows of keys (each key ~18vw) */
