@@ -8,18 +8,19 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { PERSON } from "@/lib/data";
 
+const WORD = "SUCCESS";
+const COLORS = [
+  { c: "#1a1a1a", ink: "#ffffff" },
+  { c: "#e8341c", ink: "#ffffff" },
+  { c: "#f0f0ee", ink: "#111111" },
+];
 const KEYS = [
-  { l: "К", c: "#1a1a1a", ink: "#ffffff" },
-  { l: "Р", c: "#e8341c", ink: "#ffffff" },
-  { l: "И", c: "#f0f0ee", ink: "#111111" },
-  { l: "С", c: "#1a1a1a", ink: "#ffffff" },
-  { l: "Т", c: "#e8341c", ink: "#ffffff" },
-  { l: "И", c: "#f0f0ee", ink: "#111111" },
-  { l: "Н", c: "#1a1a1a", ink: "#ffffff" },
-  { l: "А", c: "#f0f0ee", ink: "#111111" },
+  ...[...WORD].map((l, i) => ({ l, ...COLORS[i % COLORS.length] })),
   { l: ":)", c: "#e8341c", ink: "#111111" },
 ];
-const KEY = 1.5;
+const MAX_KEY = 1.5; // key size on wide screens
+const ROW = 0.8; // the row of keys takes at most this share of the width
+const GAP = 0.12; // gap between keys, in key sizes
 
 function keyLabel(text, ink, family) {
   const c = document.createElement("canvas");
@@ -77,19 +78,48 @@ export default function Footer() {
     wallL.quaternion.setFromEuler(0, Math.PI / 2, 0);
     const wallR = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
     wallR.quaternion.setFromEuler(0, -Math.PI / 2, 0);
-    [ground, wallL, wallR].forEach((b) => world.addBody(b));
+    // keeps the keys from flying out over the top edge
+    const ceiling = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
+    ceiling.quaternion.setFromEuler(Math.PI / 2, 0, 0);
+    [ground, wallL, wallR, ceiling].forEach((b) => world.addBody(b));
+
+    // ---------- layout ----------
+    let vw = 1;
+    let vh = 1;
+    const resize = () => {
+      const w = foot.clientWidth;
+      const h = foot.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
+      vw = vh * camera.aspect;
+      ground.position.set(0, -vh / 2, 0);
+      ceiling.position.set(0, vh / 2, 0);
+      wallL.position.set(-vw / 2, 0, 0);
+      wallR.position.set(vw / 2, 0, 0);
+    };
+    resize();
+
+    // narrow screens (phones): two rows, SUCC on top of ESS:), so the keys
+    // can be twice as large
+    const narrow = foot.clientWidth <= 640;
+    const perRow = narrow ? Math.ceil(KEYS.length / 2) : KEYS.length;
+    // key size follows the screen width
+    const KEY = Math.min(MAX_KEY, (vw * ROW) / (perRow + (perRow - 1) * GAP));
 
     const pointer = new CANNON.Body({
       mass: 0,
       type: CANNON.Body.KINEMATIC,
-      shape: new CANNON.Sphere(1.1),
+      shape: new CANNON.Sphere(KEY * 0.73),
     });
     pointer.position.set(0, 100, 0);
     world.addBody(pointer);
 
     const disposables = [];
     const keys = KEYS.map((k) => {
-      const geo = new RoundedBoxGeometry(KEY, KEY, KEY * 0.7, 4, 0.22);
+      // corner rounding scales with the key, so small keys stay cube-shaped
+      const geo = new RoundedBoxGeometry(KEY, KEY, KEY * 0.7, 4, KEY * 0.15);
       const mat = new THREE.MeshPhysicalMaterial({
         color: k.c,
         roughness: 0.4,
@@ -112,43 +142,50 @@ export default function Footer() {
         linearDamping: 0.05,
         angularDamping: 0.4,
       });
-      // keep the lettered face towards the viewer: spin mostly in the screen plane
-      body.linearFactor.set(1, 1, 0);
-      body.angularFactor.set(0.12, 0.12, 1);
+      // until someone plays with them the keys move only up and down, so they
+      // fall straight into their places and the rows stay even (see release)
+      body.linearFactor.set(0, 1, 0);
+      body.angularFactor.set(0, 0, 0);
       return { mesh, body };
     });
 
-    // ---------- layout ----------
-    let vw = 1;
-    let vh = 1;
-    const resize = () => {
-      const w = foot.clientWidth;
-      const h = foot.clientHeight;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.position.z;
-      vw = vh * camera.aspect;
-      ground.position.set(0, -vh / 2, 0);
-      wallL.position.set(-vw / 2, 0, 0);
-      wallR.position.set(vw / 2, 0, 0);
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      keys.forEach(({ body }) => {
+        // keep the lettered face towards the viewer: spin mostly in the screen plane
+        body.linearFactor.set(1, 1, 0);
+        body.angularFactor.set(0.12, 0.12, 1);
+        body.wakeUp();
+      });
     };
+
     const ro = new ResizeObserver(resize);
     ro.observe(foot);
-    resize();
 
+    // one after another the keys fall straight down onto their places in the
+    // row and spell the word; after that they only move when pushed or tapped
     let spawned = false;
+    const timers = [];
     const spawn = () => {
       spawned = true;
+      const step = KEY * (1 + GAP);
       keys.forEach(({ mesh, body }, i) => {
-        body.position.set((Math.random() - 0.5) * (vw - KEY * 2), vh / 2 + 2 + i * 1.4, 0);
-        body.quaternion.setFromEuler(
-          (Math.random() - 0.5) * 0.6,
-          (Math.random() - 0.5) * 0.6,
-          Math.random() * Math.PI * 2
+        const col = i % perRow;
+        const topRow = narrow && i < perRow;
+        body.position.set((col - (perRow - 1) / 2) * step, vh / 2 - KEY, 0);
+        body.quaternion.set(0, 0, 0, 1);
+        body.velocity.set(0, 0, 0);
+        body.angularVelocity.set(0, 0, 0);
+        // the bottom row falls first, the top row lands on it after
+        const order = topRow ? perRow + col : narrow ? col : i;
+        timers.push(
+          setTimeout(() => {
+            world.addBody(body);
+            mesh.visible = true;
+          }, order * 120 + (topRow ? 400 : 0))
         );
-        world.addBody(body);
-        mesh.visible = true;
       });
     };
 
@@ -170,12 +207,31 @@ export default function Footer() {
       target.x = e.clientX - r.left;
       target.y = e.clientY - r.top;
       target.inside = true;
+      if (spawned) release();
     };
     const onLeave = () => {
       target.inside = false;
     };
     foot.addEventListener("pointermove", onMove);
     foot.addEventListener("pointerleave", onLeave);
+
+    // phones: a tapped key jumps up with a little spin
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const onTap = (e) => {
+      if (e.pointerType === "mouse" || !spawned) return;
+      const r = foot.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      const hit = ray.intersectObjects(keys.map((k) => k.mesh), true)[0];
+      if (!hit) return;
+      const key = keys.find((k) => k.mesh === hit.object || k.mesh === hit.object.parent);
+      if (!key) return;
+      release();
+      key.body.velocity.set((Math.random() - 0.5) * KEY * 2, Math.sqrt(150 * KEY), 0);
+      key.body.angularVelocity.set(0, 0, (Math.random() - 0.5) * 10);
+    };
+    foot.addEventListener("pointerdown", onTap);
 
     // ---------- loop ----------
     let raf;
@@ -223,10 +279,12 @@ export default function Footer() {
 
     return () => {
       cancelAnimationFrame(raf);
+      timers.forEach(clearTimeout);
       ro.disconnect();
       io.disconnect();
       foot.removeEventListener("pointermove", onMove);
       foot.removeEventListener("pointerleave", onLeave);
+      foot.removeEventListener("pointerdown", onTap);
       disposables.forEach((d) => d.dispose());
       envTex.dispose();
       pmrem.dispose();

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ACHIEVEMENTS } from "@/lib/data";
+import { EDUCATION } from "@/lib/data";
 import AchievementObjects from "./AchievementObjects";
 
 const LINES = ["Превращаю", "хаос в систему,", "идеи —", "в результат."];
+// narrow screens: shorter lines, so the letters can be larger
+const LINES_NARROW = ["Превращаю", "хаос", "в систему,", "идеи —", "в результат."];
 const RADIUS = 110;
-const LETTERS = "abcdefgh";
 
 export default function Achievements() {
   const boxRef = useRef(null);
@@ -25,6 +26,8 @@ export default function Achievements() {
     let w = 0;
     let h = 0;
     const mouse = { x: -9999, y: -9999 };
+    let textArea = { l: 0, r: 0, t: 0, b: 0 };
+    let touchOnText = false;
 
     const build = () => {
       const dpr = Math.min(window.devicePixelRatio, 2);
@@ -39,17 +42,18 @@ export default function Achievements() {
       off.width = w;
       off.height = h;
       const o = off.getContext("2d");
+      const lines = w <= 640 ? LINES_NARROW : LINES;
       let fs = 100;
       o.font = `700 ${fs}px ${family}`;
-      const widest = Math.max(...LINES.map((l) => o.measureText(l.toUpperCase()).width));
-      fs = Math.min((fs * w * 0.82) / widest, (h * 0.92) / (LINES.length * 1.02));
+      const widest = Math.max(...lines.map((l) => o.measureText(l.toUpperCase()).width));
+      fs = Math.min((fs * w * 0.82) / widest, (h * 0.92) / (lines.length * 1.02));
       o.font = `700 ${fs}px ${family}`;
       o.textAlign = "center";
       o.textBaseline = "middle";
       o.fillStyle = "#000";
       const lh = fs * 1.02;
-      const top = h / 2 - (lh * (LINES.length - 1)) / 2;
-      LINES.forEach((l, i) => o.fillText(l.toUpperCase(), w / 2, top + i * lh));
+      const top = h / 2 - (lh * (lines.length - 1)) / 2;
+      lines.forEach((l, i) => o.fillText(l.toUpperCase(), w / 2, top + i * lh));
 
       const step = Math.max(5, Math.round(fs / 16));
       size = step * 0.45;
@@ -62,18 +66,57 @@ export default function Achievements() {
           }
         }
       }
+
+      // the area the text takes (plus a margin): touches here play with the
+      // dots instead of scrolling the page
+      const PAD = 12;
+      textArea = dots.reduce(
+        (a, d) => ({
+          l: Math.min(a.l, d.hx - PAD),
+          r: Math.max(a.r, d.hx + PAD),
+          t: Math.min(a.t, d.hy - PAD),
+          b: Math.max(a.b, d.hy + PAD),
+        }),
+        { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity }
+      );
     };
 
-    const onMove = (e) => {
+    const aim = (x, y) => {
       const r = box.getBoundingClientRect();
-      mouse.x = e.clientX - r.left;
-      mouse.y = e.clientY - r.top;
+      mouse.x = x - r.left;
+      mouse.y = y - r.top;
     };
-    const onLeave = () => {
+    const release = () => {
       mouse.x = mouse.y = -9999;
+    };
+    const onMove = (e) => {
+      if (e.pointerType === "mouse") aim(e.clientX, e.clientY);
+    };
+    const onLeave = (e) => {
+      if (e.pointerType === "mouse") release();
+    };
+    // phones: a finger that starts on the text drives the dots and does not
+    // scroll the page; anywhere else the page scrolls as usual
+    const onTouchStart = (e) => {
+      const t = e.touches[0];
+      if (!t) return;
+      aim(t.clientX, t.clientY);
+      touchOnText =
+        mouse.x >= textArea.l && mouse.x <= textArea.r && mouse.y >= textArea.t && mouse.y <= textArea.b;
+      if (!touchOnText) release();
+    };
+    const onTouchMove = (e) => {
+      if (!touchOnText) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      if (t) aim(t.clientX, t.clientY);
     };
     box.addEventListener("pointermove", onMove);
     box.addEventListener("pointerleave", onLeave);
+    box.addEventListener("touchstart", onTouchStart, { passive: true });
+    box.addEventListener("touchmove", onTouchMove, { passive: false });
+    box.addEventListener("touchend", release);
+    box.addEventListener("touchcancel", release);
 
     let visible = false;
     const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting));
@@ -129,6 +172,10 @@ export default function Achievements() {
       ro.disconnect();
       box.removeEventListener("pointermove", onMove);
       box.removeEventListener("pointerleave", onLeave);
+      box.removeEventListener("touchstart", onTouchStart);
+      box.removeEventListener("touchmove", onTouchMove);
+      box.removeEventListener("touchend", release);
+      box.removeEventListener("touchcancel", release);
     };
   }, []);
 
@@ -141,12 +188,11 @@ export default function Achievements() {
       </div>
 
       <ul className="ach-table">
-        {ACHIEVEMENTS.map((a, i) => (
-          <li key={a.what}>
-            <span>{a.what}</span>
-            <span>{a.where}</span>
-            <span>({LETTERS[i]}.)</span>
-            <span>{a.value}</span>
+        {EDUCATION.map((e) => (
+          <li key={e.title}>
+            <span className="ach-label">{e.label}</span>
+            <span className="ach-title">{e.title}</span>
+            <span className="ach-year">{e.year}</span>
           </li>
         ))}
       </ul>

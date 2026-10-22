@@ -157,7 +157,8 @@ const COMPOSITE_FRAGMENT = glsl`
 // surface can flow.
 const LETTERS_WIDTH = 3.32;
 
-function buildLetters() {
+// maxEdge: the longest triangle edge after tessellation (smaller = finer)
+function buildLetters(maxEdge) {
   const o = new THREE.Shape();
   o.absellipse(-0.9, 0, 0.72, 1, 0, Math.PI * 2, false, 0);
   const hole = new THREE.Path();
@@ -180,7 +181,7 @@ function buildLetters() {
     curveSegments: 64,
   });
   geo.center();
-  geo = new TessellateModifier(0.09, 8).modify(geo);
+  geo = new TessellateModifier(maxEdge, 8).modify(geo);
   geo.deleteAttribute("normal");
   geo.deleteAttribute("uv");
   geo = mergeVertices(geo);
@@ -202,8 +203,13 @@ export default function Hero() {
       hand: rootStyle.getPropertyValue("--font-hand").trim(),
     };
 
+    // phones and tablets: lighter rendering so the screen stays smooth
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    // narrow screens: no glass letters, own layout of the headline and stickers
+    const narrow = () => section.clientWidth <= 640;
+
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(touch ? 1 : Math.min(window.devicePixelRatio, 1.5));
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
@@ -237,6 +243,9 @@ export default function Hero() {
     const drawHeadline = () => {
       const w = 2048;
       const h = Math.round((w * section.clientHeight) / section.clientWidth);
+      // the GPU copy keeps the size it was made with: on a new size (window
+      // resized, phone turned) drop it so it is made again at the new size
+      if (textCanvas.width !== w || textCanvas.height !== h) textTex.dispose();
       textCanvas.width = w;
       textCanvas.height = h;
       const ctx = textCanvas.getContext("2d");
@@ -250,16 +259,29 @@ export default function Hero() {
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
       const ascent = ctx.measureText(lines[0]).actualBoundingBoxAscent;
+      const k = w / section.clientWidth; // canvas px per screen px
+      let top = h * 0.12;
+      const hd = document.querySelector(".hd");
+      if (narrow() && hd) {
+        // keep the name clear of the header buttons and logo
+        top = Math.max(top, (hd.offsetTop + hd.offsetHeight + 32) * k);
+      }
       lines.forEach((line, i) =>
-        ctx.fillText(line, w / 2, h * 0.12 + ascent + i * size * 0.98)
+        ctx.fillText(line, w / 2, top + ascent + i * size * 0.98)
       );
+      // where the name ends on screen: on narrow screens the role line
+      // stands right under it (see .hero-tag)
+      const nameBottom = (top + ascent + size * 0.98) / k;
+      section.style.setProperty("--name-bottom", `${Math.round(nameBottom)}px`);
       textTex.needsUpdate = true;
     };
 
     // ---------- liquid glass letters ----------
-    const glassGeo = buildLetters();
-    const base = glassGeo.attributes.position.array.slice();
-    const baseNormal = glassGeo.attributes.normal.array.slice();
+    // not on narrow screens (phones): there they slow everything down
+    const withGlass = !narrow();
+    const glassGeo = withGlass ? buildLetters(touch ? 0.18 : 0.09) : null;
+    const base = glassGeo?.attributes.position.array.slice();
+    const baseNormal = glassGeo?.attributes.normal.array.slice();
     const tint = new THREE.Color();
     const glassMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
@@ -273,8 +295,8 @@ export default function Hero() {
       attenuationColor: new THREE.Color(),
       attenuationDistance: 1.4,
     });
-    const glass = new THREE.Mesh(glassGeo, glassMat);
-    scene.add(glass);
+    const glass = withGlass ? new THREE.Mesh(glassGeo, glassMat) : null;
+    if (glass) scene.add(glass);
     const noise = new SimplexNoise();
 
     // ---------- falling elements ----------
@@ -337,6 +359,8 @@ export default function Hero() {
           item.disposables.forEach((d) => d.dispose());
           return;
         }
+        // stickers are 30% smaller on narrow screens
+        if (narrow()) item.mesh.scale.multiplyScalar(0.7);
         disposables.push(...item.disposables);
         scene.add(item.mesh);
         const { width, height } = item.mesh.geometry.parameters;
@@ -375,7 +399,10 @@ export default function Hero() {
     section.addEventListener("pointerleave", onLeave);
 
     // ---------- render targets & full-screen passes ----------
-    const sceneRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    const sceneRT = new THREE.WebGLRenderTarget(1, 1, {
+      type: THREE.HalfFloatType,
+      samples: touch ? 0 : 4,
+    });
     const flowOpts = { type: THREE.HalfFloatType, depthBuffer: false };
     let flowA = new THREE.WebGLRenderTarget(1, 1, flowOpts);
     let flowB = new THREE.WebGLRenderTarget(1, 1, flowOpts);
@@ -431,7 +458,7 @@ export default function Hero() {
     };
 
     const onClick = (e) => {
-      if (ok.p < 0.99) return;
+      if (!glass || ok.p < 0.99) return;
       const r = section.getBoundingClientRect();
       tmp.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       raycaster.setFromCamera(tmp, camera);
@@ -475,7 +502,7 @@ export default function Hero() {
     const ro = new ResizeObserver(resize);
     ro.observe(section);
     resize();
-    document.fonts.ready.then(() => !disposed && drawHeadline());
+    document.fonts.ready.then(() => !disposed && resize());
 
     let visible = true;
     const io = new IntersectionObserver(([entry]) => {
@@ -486,8 +513,9 @@ export default function Hero() {
     // ---------- loop ----------
     const start = performance.now();
     let last = start;
-    const pos = glassGeo.attributes.position;
+    const pos = glassGeo?.attributes.position;
     let raf;
+    let frameNo = 0;
 
     const frame = () => {
       raf = requestAnimationFrame(frame);
@@ -498,20 +526,24 @@ export default function Hero() {
       const t = (now - start) / 1000;
       bgMat.uniforms.uTime.value = t;
 
-      // glass: tinted by the current background colour, slow full turn
-      paletteAt(t * PALETTE_SPEED, tint);
-      glassMat.attenuationColor.copy(tint);
-      glassMat.color.setRGB(1, 1, 1).lerp(tint, 0.35);
+      if (glass) {
+        // glass: tinted by the current background colour, slow full turn
+        paletteAt(t * PALETTE_SPEED, tint);
+        glassMat.attenuationColor.copy(tint);
+        glassMat.color.setRGB(1, 1, 1).lerp(tint, 0.35);
 
-      locateLogo();
-      glass.position.copy(logoPoint).multiplyScalar(1 - ok.p);
-      glass.scale.setScalar(glassScale * (0.06 + 0.94 * ok.p));
-      glass.visible = ok.p > 0.01;
-      glass.rotation.y = t * 0.15;
-      glass.rotation.x = Math.sin(t * 0.3) * 0.08;
+        locateLogo();
+        glass.position.copy(logoPoint).multiplyScalar(1 - ok.p);
+        glass.scale.setScalar(glassScale * (0.06 + 0.94 * ok.p));
+        glass.visible = ok.p > 0.01;
+        glass.rotation.y = t * 0.15;
+        glass.rotation.x = Math.sin(t * 0.3) * 0.08;
+      }
 
       // liquid surface: broad slow swell + fine ripple along the normals
-      if (glass.visible) {
+      // (touch screens recompute it every other frame)
+      frameNo++;
+      if (glass?.visible && (!touch || frameNo % 2 === 0)) {
         for (let i = 0; i < pos.count; i++) {
           const j = i * 3;
           const bx = base[j];
@@ -614,7 +646,7 @@ export default function Hero() {
       [sceneRT, flowA, flowB].forEach((rt) => rt.dispose());
       [flowMat, compositeMat, glassMat, bgMat].forEach((m) => m.dispose());
       screenQuad.geometry.dispose();
-      glassGeo.dispose();
+      glassGeo?.dispose();
       bg.geometry.dispose();
       textTex.dispose();
       envTex.dispose();
@@ -633,7 +665,11 @@ export default function Hero() {
       <SkillsReel />
 
       <p className="hero-tag">
-        <strong>{PERSON.roleEn}</strong>
+        {/* each half stays whole: a narrow screen breaks the line between them */}
+        <strong>
+          <span className="nowrap">{PERSON.roleEn} /</span>{" "}
+          <span className="nowrap">Операционный менеджер</span>
+        </strong>
         <em>10+ лет управленческого опыта</em>
       </p>
     </section>

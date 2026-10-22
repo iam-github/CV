@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,9 +9,45 @@ const MENU = [
   { href: "/contact", label: "Контакты" },
 ];
 
+// sections with a dark background: over them the logo turns white
+const DARK = ".mf-pane, .wd, .ach, .cl, .sk, .nc";
+
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [onDark, setOnDark] = useState(false);
+  const logoRef = useRef(null);
   const pathname = usePathname();
+
+  // checks which section is under the logo while the page scrolls
+  useEffect(() => {
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const r = logoRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      const dark = [...document.querySelectorAll(DARK)].some((el) => {
+        const s = el.getBoundingClientRect();
+        return x >= s.left && x <= s.right && y >= s.top && y <= s.bottom;
+      });
+      setOnDark(dark);
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    check();
+    // a new page may finish laying out a moment later
+    const late = setTimeout(check, 400);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(late);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [pathname]);
 
   // on the home page the logo brings the glass "ОК" back out (see Hero)
   const onLogo = (e) => {
@@ -48,12 +84,31 @@ export default function Header() {
         </span>
       </div>
 
-      <Link href="/" className="hd-logo" aria-label="ОК" onClick={onLogo}>
+      <Link
+        ref={logoRef}
+        href="/"
+        className={`hd-logo${onDark ? " is-on-dark" : ""}`}
+        aria-label="ОК"
+        onClick={onLogo}
+      >
+        {/* the letters are cut out of the shape, so the page shows through */}
         <svg viewBox="0 0 48 56" width="48" height="56">
-          <path d="M6 0h28l14 14v36a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6z" />
-          <text x="24" y="38" textAnchor="middle">
-            ОК
-          </text>
+          <defs>
+            <mask id="hd-logo-cut">
+              <path
+                className="hd-logo-mask-shape"
+                d="M6 0h28l14 14v36a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6z"
+              />
+              <text className="hd-logo-mask-text" x="24" y="38" textAnchor="middle">
+                ОК
+              </text>
+            </mask>
+          </defs>
+          <path
+            className="hd-logo-shape"
+            mask="url(#hd-logo-cut)"
+            d="M6 0h28l14 14v36a6 6 0 0 1-6 6H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6z"
+          />
         </svg>
       </Link>
 

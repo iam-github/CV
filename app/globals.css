@@ -157,14 +157,26 @@ a {
   transform: translate(-50%, -50%);
   display: block;
   line-height: 0;
+  color: #111;
+  transition: color 0.3s var(--ease);
 }
 
-.hd-logo path {
-  fill: #111;
+/* over dark sections */
+.hd-logo.is-on-dark {
+  color: #fff;
 }
 
-.hd-logo text {
+.hd-logo-shape {
+  fill: currentColor;
+}
+
+/* white = shape kept, black = cut out (the letters) */
+.hd-logo-mask-shape {
   fill: #fff;
+}
+
+.hd-logo-mask-text {
+  fill: #000;
   font-family: var(--font-body), system-ui, sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -534,6 +546,10 @@ a {
   color: #111;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 .hero-tag strong {
   font: 700 clamp(18px, 2vw, 28px)/1.1 var(--font-body), sans-serif;
 }
@@ -545,8 +561,15 @@ a {
 
 /* ---------- manifest ---------- */
 
-.mf-pane {
+/* .mf is (1 + SCREENS) screens tall; the pane sticks to the top meanwhile */
+.mf {
   position: relative;
+  background: var(--bg);
+}
+
+.mf-pane {
+  position: sticky;
+  top: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -772,10 +795,23 @@ a {
   transition: max-height 0.6s var(--ease), opacity 0.4s var(--ease), margin 0.6s var(--ease);
 }
 
-.wd-card:hover .wd-desc {
+/* opens on hover with a mouse, on tap on phones (.is-open) */
+.wd-card.is-open .wd-desc {
   max-height: 340px;
   opacity: 1;
   margin-top: 16px;
+}
+
+@media (hover: hover) {
+  .wd-card:hover .wd-desc {
+    max-height: 340px;
+    opacity: 1;
+    margin-top: 16px;
+  }
+
+  .wd-card:hover::after {
+    opacity: 1;
+  }
 }
 
 /* darkening under the text while the description is open */
@@ -790,7 +826,7 @@ a {
   pointer-events: none;
 }
 
-.wd-card:hover::after {
+.wd-card.is-open::after {
   opacity: 1;
 }
 
@@ -953,24 +989,31 @@ a {
   border-top: 1px solid var(--line);
 }
 
+/* education: small label | the education itself (main) | small year */
 .ach-table li {
   display: grid;
-  grid-template-columns: 1.3fr 1.3fr 0.6fr 1fr;
+  grid-template-columns: 1fr 2.2fr 0.4fr;
+  gap: 20px;
   align-items: center;
   padding: 18px 12px;
   border-bottom: 1px solid var(--line);
-  font: 400 11px var(--font-mono), monospace;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   color: var(--muted);
   transition: background 0.25s, color 0.25s;
 }
 
-.ach-table li span:last-child {
+.ach-label,
+.ach-year {
+  font: 400 11px var(--font-mono), monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ach-year {
   text-align: right;
-  font: 500 15px var(--font-body), sans-serif;
-  letter-spacing: 0;
-  text-transform: none;
+}
+
+.ach-title {
+  font: 500 17px/1.35 var(--font-body), sans-serif;
   color: var(--fg);
   transition: color 0.25s;
 }
@@ -980,7 +1023,7 @@ a {
   color: #111;
 }
 
-.ach-table li:hover span:last-child {
+.ach-table li:hover .ach-title {
   color: #111;
 }
 
@@ -1215,6 +1258,20 @@ a {
   flex-direction: column;
   font: 700 clamp(36px, 6.6vw, 112px)/0.95 var(--font-display), sans-serif;
   text-transform: uppercase;
+  transition: color 0.25s var(--ease);
+}
+
+/* the e-mail looks like a link: blue on hover, always blue on phones */
+.ft-mail:hover,
+.ft-cols a[href^="mailto"]:hover {
+  color: #0000ee;
+}
+
+@media (hover: none) {
+  .ft-mail,
+  .ft-cols a[href^="mailto"] {
+    color: #0000ee;
+  }
 }
 
 .ft-sub {
@@ -1700,9 +1757,14 @@ a {
     display: none;
   }
 
+  /* centred right under the name (Hero sets --name-bottom) */
   .hero-tag {
+    left: 16px;
     right: 16px;
-    bottom: 16px;
+    top: calc(var(--name-bottom, 30vh) + 20px);
+    bottom: auto;
+    align-items: center;
+    text-align: center;
   }
 
   .hero-tag em {
@@ -1721,17 +1783,56 @@ a {
     --s: 54px;
   }
 
+  /* text in five lines; the pictures sit right above and below it */
+  .ach-dots {
+    height: 500px;
+  }
+
   .ach-obj {
-    width: 72px;
+    width: 80px;
   }
 
+  .ach-obj-tl,
+  .ach-obj-tr {
+    top: 30px;
+  }
+
+  .ach-obj-bl,
+  .ach-obj-br {
+    top: auto;
+    bottom: 30px;
+  }
+
+  .ach-obj-tl,
+  .ach-obj-bl {
+    left: 4%;
+  }
+
+  .ach-obj-tr,
+  .ach-obj-br {
+    right: 4%;
+  }
+
+  /* label and year on the first line, the education under them */
   .ach-table li {
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "label year"
+      "title title";
+    gap: 8px;
   }
 
-  .ach-table li span:nth-child(3) {
-    display: none;
+  .ach-label {
+    grid-area: label;
+  }
+
+  .ach-year {
+    grid-area: year;
+  }
+
+  .ach-title {
+    grid-area: title;
+    font-size: 16px;
   }
 
   .cl-cell {
@@ -1740,6 +1841,16 @@ a {
 
   .sk-note {
     display: none;
+  }
+
+  /* room at the bottom for the two rows of keys (each key ~18vw) */
+  .ft {
+    padding-bottom: calc(37vw + 16px);
+  }
+
+  /* the address fits the width whole: its longer half is ~11 letters' em wide */
+  .ft-mail {
+    font-size: calc((100vw - 3 * var(--gutter)) / 11.5);
   }
 
   .ft-cols,

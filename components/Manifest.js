@@ -18,7 +18,8 @@ const LINES = [
 
 const TICKER_ITEMS = TICKER;
 
-const PX_PER_WORD = 180;
+// the whole lighting-up takes this many screen heights of scrolling
+const SCREENS = 2;
 // after the last word lights up the section stays pinned this many "words"
 // longer, so the end of the text is always seen fully lit
 const HOLD_WORDS = 3;
@@ -41,12 +42,13 @@ export default function Manifest() {
     const ctx = gsap.context(() => {
       const words = gsap.utils.toArray(".mf-word");
 
+      // the pane is held on screen by CSS (position: sticky) rather than
+      // pinned from script, so on phones it never runs off and jumps back
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: sectionRef.current,
           start: "top top",
-          end: `+=${(words.length + HOLD_WORDS) * PX_PER_WORD}`,
-          pin: true,
+          end: "bottom bottom",
           scrub: 0.25,
         },
       });
@@ -78,7 +80,12 @@ export default function Manifest() {
   const ticker = [...TICKER_ITEMS, ...TICKER_ITEMS];
 
   return (
-    <section ref={sectionRef} className="mf-pane">
+    <section
+      ref={sectionRef}
+      className="mf"
+      style={{ height: `${(SCREENS + 1) * 100}vh` }}
+    >
+      <div className="mf-pane">
       <p className="mf-label">
         Управление проектами | бизнес-аналитика | операционный менеджмент
       </p>
@@ -119,6 +126,7 @@ export default function Manifest() {
           <span>{PERSON.city}</span>
           <span suppressHydrationWarning>{time}</span>
         </div>
+      </div>
       </div>
     </section>
   );

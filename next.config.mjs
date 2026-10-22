@@ -16,6 +16,9 @@ const nextConfig = {
   }),
   // lets client code build URLs of files in /public
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
+  // `next dev` only: lets a phone on the same Wi-Fi open the dev site
+  // at this computer's local address
+  allowedDevOrigins: ["192.168.1.65"],
 };
 
 export default nextConfig;
